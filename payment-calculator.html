@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vendor Payment System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        body { background: linear-gradient(135deg, #f8fafc, #e0f2fe); }
+        .tab-active { border-bottom: 4px solid #2563eb; color: #1e40af; font-weight: 600; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 50; align-items: center; justify-content: center; }
+        .summary-sticky { position: sticky; top: 1.5rem; }
+        @media (max-width: 1023px) { .summary-sticky { position: static; } }
+    </style>
+</head>
+<body class="min-h-screen">
+    <div class="max-w-7xl mx-auto p-6">
+        <div class="bg-white rounded-3xl shadow-2xl overflow-hidden">
+            <div class="bg-gradient-to-r from-blue-700 to-indigo-600 text-white p-8">
+                <h1 class="text-4xl font-bold">Vendor Payment System</h1>
+            </div>
+
+            <div class="flex border-b bg-gray-50">
+                <button onclick="switchTab(0)" class="tab-btn tab-active px-10 py-5 text-lg flex-1" id="tab0">
+                    <i class="fas fa-calculator"></i> Payment Calculator
+                </button>
+                <button onclick="switchTab(1)" class="tab-btn px-10 py-5 text-lg flex-1" id="tab1">
+                    <i class="fas fa-users"></i> Vendor Details
+                </button>
+            </div>
+
+            <div class="p-8">
+                <!-- PAYMENT CALCULATOR -->
+                <div id="content0">
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+
+                        <!-- LEFT: Vendor + Bill entry -->
+                        <div class="lg:col-span-7">
+                            <h2 class="text-3xl font-semibold mb-6">Payment Calculator</h2>
+
+                            <div class="grid grid-cols-2 gap-6 mb-6">
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">Vendor Name</label>
+                                    <select id="vendorSelect" onchange="loadVendorAdvance()" class="w-full px-5 py-4 border border-gray-300 rounded-2xl"></select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">Date</label>
+                                    <input type="date" id="calcDate" class="w-full px-5 py-4 border border-gray-300 rounded-2xl">
+                                </div>
+                            </div>
+
+                            <!-- Items List -->
+                            <div class="mb-8">
+                                <div class="flex justify-between items-center mb-4">
+                                    <h3 class="font-semibold text-xl">Items</h3>
+                                    <button onclick="addItemRow()" class="bg-blue-600 text-white px-6 py-3 rounded-2xl flex items-center gap-2">
+                                        <i class="fas fa-plus"></i> Add Item
+                                    </button>
+                                </div>
+                                <div class="overflow-x-auto rounded-2xl border">
+                                    <table class="w-full border-collapse">
+                                        <thead>
+                                            <tr class="bg-gray-100">
+                                                <th class="p-4 text-left">Item Name</th>
+                                                <th class="p-4 text-right">Weight (kg)</th>
+                                                <th class="p-4 text-right">Rate (₹/kg)</th>
+                                                <th class="p-4 text-right">Amount (₹)</th>
+                                                <th class="p-4 w-16"></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="itemsBody"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <div class="bg-sky-50 p-6 rounded-2xl border border-sky-200">
+                                    <label class="block text-sky-800 font-medium mb-2">Deduction (%)</label>
+                                    <input id="deductionPercent" type="number" step="0.01" value="0" oninput="calculateAll()"
+                                           class="w-full text-3xl text-right border border-sky-300 rounded-2xl p-4">
+                                </div>
+                                <div class="bg-amber-50 p-6 rounded-2xl border border-amber-200">
+                                    <label class="block text-amber-800 font-medium mb-2">Paid Before (₹)</label>
+                                    <input id="paidBefore" type="number" value="0" oninput="calculateAll()"
+                                           class="w-full text-3xl text-right border border-amber-300 rounded-2xl p-4">
+                                </div>
+                                <div class="bg-orange-50 p-6 rounded-2xl border border-orange-200">
+                                    <label class="block text-orange-800 font-medium mb-2">Advance to Deduct (₹)</label>
+                                    <input id="advanceDeduct" type="number" value="0" oninput="calculateAll()"
+                                           class="w-full text-3xl text-right border border-orange-300 rounded-2xl p-4">
+                                </div>
+                            </div>
+
+                            <div class="flex gap-4 mt-8">
+                                <button onclick="calculateAll()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-5 rounded-2xl font-semibold text-lg">
+                                    <i class="fas fa-calculator"></i> Calculate
+                                </button>
+                                <button onclick="savePayment()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-5 rounded-2xl font-semibold text-lg">
+                                    <i class="fas fa-save"></i> Save Payment
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- RIGHT: Payment Summary -->
+                        <div class="lg:col-span-5">
+                            <div class="summary-sticky bg-gradient-to-br from-slate-50 to-blue-50 border border-blue-100 rounded-3xl p-8">
+                                <h3 class="font-semibold text-2xl mb-6 text-center">Payment Summary</h3>
+                                <div id="summary" class="space-y-6"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VENDOR DETAILS -->
+                <div id="content1" class="hidden">
+                    <div class="flex justify-between items-center mb-8">
+                        <h2 class="text-3xl font-semibold">Vendor Details</h2>
+                        <button onclick="addNewVendor()" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-2xl flex items-center gap-3">
+                            <i class="fas fa-user-plus"></i> Add Vendor
+                        </button>
+                    </div>
+
+                    <div class="overflow-x-auto rounded-3xl border">
+                        <table class="w-full">
+                            <thead class="bg-gray-100">
+                                <tr>
+                                    <th class="p-5 text-left">Vendor Name</th>
+                                    <th class="p-5 text-right">Current Advance</th>
+                                    <th class="p-5 text-center">Last Payment</th>
+                                    <th class="p-5 text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="vendorsBody" class="divide-y"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Transaction History Modal -->
+    <div id="transactionModal" class="modal">
+        <div class="bg-white rounded-3xl p-8 w-full max-w-6xl max-h-[90vh] overflow-auto mx-4">
+            <div class="flex justify-between items-center mb-6 border-b pb-4">
+                <h2 id="modalVendorName" class="text-3xl font-bold"></h2>
+                <button onclick="closeModal()" class="text-4xl leading-none">×</button>
+            </div>
+            <div id="transactionsList"></div>
+            <button onclick="closeModal()" class="mt-8 w-full py-4 bg-gray-200 hover:bg-gray-300 rounded-2xl">Close</button>
+        </div>
+    </div>
+
+    <!-- Add Vendor Modal -->
+    <div id="addVendorModal" class="modal">
+        <div class="bg-white rounded-3xl p-8 w-full max-w-md mx-4">
+            <div class="flex justify-between items-center mb-6 border-b pb-4">
+                <h2 class="text-2xl font-bold">Add Vendor</h2>
+                <button onclick="closeAddVendorModal()" class="text-4xl leading-none">×</button>
+            </div>
+            <label class="block text-sm font-medium mb-2">Vendor Name</label>
+            <input id="newVendorName" type="text" placeholder="Enter vendor name"
+                   class="w-full px-5 py-4 border border-gray-300 rounded-2xl mb-6"
+                   onkeydown="if(event.key==='Enter') confirmAddVendor()">
+            <div class="flex gap-4">
+                <button onclick="closeAddVendorModal()" class="flex-1 py-4 bg-gray-200 hover:bg-gray-300 rounded-2xl font-medium">Cancel</button>
+                <button onclick="confirmAddVendor()" class="flex-1 py-4 bg-green-600 hover:bg-green-700 text-white rounded-2xl font-medium">Add Vendor</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Delete Modal -->
+    <div id="confirmDeleteModal" class="modal">
+        <div class="bg-white rounded-3xl p-8 w-full max-w-md mx-4">
+            <h2 class="text-2xl font-bold mb-3">Delete vendor?</h2>
+            <p id="confirmDeleteText" class="text-gray-600 mb-6"></p>
+            <div class="flex gap-4">
+                <button onclick="closeConfirmDeleteModal()" class="flex-1 py-4 bg-gray-200 hover:bg-gray-300 rounded-2xl font-medium">Cancel</button>
+                <button onclick="confirmDeleteVendor()" class="flex-1 py-4 bg-red-600 hover:bg-red-700 text-white rounded-2xl font-medium">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-gray-900 text-white px-6 py-4 rounded-2xl shadow-2xl opacity-0 pointer-events-none transition-opacity duration-300 z-50"></div>
+
+    <script>
+        let vendors = JSON.parse(localStorage.getItem('vendors')) || [];
+        let pendingDeleteIndex = null;
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.remove('opacity-0');
+            toast.classList.add('opacity-100');
+            clearTimeout(showToast._t);
+            showToast._t = setTimeout(() => {
+                toast.classList.remove('opacity-100');
+                toast.classList.add('opacity-0');
+            }, 2500);
+        }
+
+        function switchTab(n) {
+            document.getElementById('content0').classList.toggle('hidden', n !== 0);
+            document.getElementById('content1').classList.toggle('hidden', n !== 1);
+            document.querySelectorAll('.tab-btn').forEach((btn, i) => btn.classList.toggle('tab-active', i === n));
+            if (n === 1) loadVendorsTable();
+        }
+
+        function populateVendorDropdown() {
+            const select = document.getElementById('vendorSelect');
+            const current = select.value;
+            select.innerHTML = '<option value="">-- Select Vendor --</option>';
+            vendors.forEach((v, i) => select.innerHTML += `<option value="${i}">${v.name}</option>`);
+            if (current !== "") select.value = current;
+        }
+
+        function loadVendorAdvance() {
+            const idx = document.getElementById('vendorSelect').value;
+            if (idx !== "") document.getElementById('advanceDeduct').value = vendors[idx].advance || 0;
+            calculateAll();
+        }
+
+        function addItemRow() {
+            const tbody = document.getElementById('itemsBody');
+            const row = document.createElement('tr');
+            row.className = 'item-row border-b';
+            row.innerHTML = `
+                <td class="p-4"><input type="text" class="item-name w-full border rounded-xl px-4 py-3" placeholder="Item name"></td>
+                <td class="p-4"><input type="number" step="0.01" value="1000" class="item-weight w-full border rounded-xl px-4 py-3 text-right" oninput="calculateAll()"></td>
+                <td class="p-4"><input type="number" step="0.01" value="50" class="item-rate w-full border rounded-xl px-4 py-3 text-right" oninput="calculateAll()"></td>
+                <td class="p-4 text-right font-semibold item-amount">₹0</td>
+                <td class="p-4"><button onclick="this.closest('tr').remove();calculateAll()" class="text-red-500">×</button></td>
+            `;
+            tbody.appendChild(row);
+            calculateAll();
+        }
+
+        function calculateAll() {
+            let gross = 0;
+            document.querySelectorAll('#itemsBody tr').forEach(row => {
+                const weight = parseFloat(row.querySelector('.item-weight').value) || 0;
+                const rate = parseFloat(row.querySelector('.item-rate').value) || 0;
+                const amount = weight * rate;
+                row.querySelector('.item-amount').textContent = '₹' + Math.round(amount);
+                gross += amount;
+            });
+
+            const deductionPercent = parseFloat(document.getElementById('deductionPercent').value) || 0;
+            const deductionAmount = gross * (deductionPercent / 100);
+            const paidBefore = parseFloat(document.getElementById('paidBefore').value) || 0;
+            const advanceDeduct = parseFloat(document.getElementById('advanceDeduct').value) || 0;
+            const amountPaid = gross - deductionAmount - paidBefore - advanceDeduct;
+
+            document.getElementById('summary').innerHTML = `
+                <div class="space-y-5 text-lg">
+                    <div class="flex justify-between"><span>Gross Amount</span><span class="font-bold">₹${Math.round(gross).toLocaleString('en-IN')}</span></div>
+                    <div class="flex justify-between"><span>Deduction (${deductionPercent}%)</span><span class="text-red-600">- ₹${Math.round(deductionAmount).toLocaleString('en-IN')}</span></div>
+                    <div class="flex justify-between"><span>Paid Before</span><span class="text-amber-600">- ₹${Math.round(paidBefore).toLocaleString('en-IN')}</span></div>
+                    <div class="flex justify-between"><span>Advance Deducted</span><span class="text-orange-600">- ₹${Math.round(advanceDeduct).toLocaleString('en-IN')}</span></div>
+                    <div class="border-t-2 pt-6 flex justify-between text-3xl font-bold ${amountPaid < 0 ? 'text-red-600' : 'text-emerald-600'}">
+                        <span>Final Amount Paid</span><span>₹${Math.round(amountPaid).toLocaleString('en-IN')}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        function savePayment() {
+            const vendorIndex = document.getElementById('vendorSelect').value;
+            if (!vendorIndex) return showToast("Please select a vendor");
+
+            let gross = 0;
+            const items = [];
+            document.querySelectorAll('#itemsBody tr').forEach(row => {
+                const name = row.querySelector('.item-name').value || "Item";
+                const weight = parseFloat(row.querySelector('.item-weight').value) || 0;
+                const rate = parseFloat(row.querySelector('.item-rate').value) || 0;
+                const amount = weight * rate;
+                gross += amount;
+                items.push({name, weight, rate, amount: Math.round(amount)});
+            });
+
+            const deductionPercent = parseFloat(document.getElementById('deductionPercent').value) || 0;
+            const deductionAmount = Math.round(gross * (deductionPercent / 100));
+            const paidBefore = parseFloat(document.getElementById('paidBefore').value) || 0;
+            const advanceDeduct = parseFloat(document.getElementById('advanceDeduct').value) || 0;
+            const amountPaid = gross - deductionAmount - paidBefore - advanceDeduct;
+            const date = document.getElementById('calcDate').value;
+
+            if (!vendors[vendorIndex].transactions) vendors[vendorIndex].transactions = [];
+
+            vendors[vendorIndex].transactions.push({
+                date,
+                grossAmount: Math.round(gross),
+                deductionPercent,
+                deductionAmount,
+                paidBefore,
+                advanceDeducted: advanceDeduct,
+                amountPaid: Math.round(amountPaid),
+                amountSent: 0,
+                items
+            });
+
+            vendors[vendorIndex].completedPayment = (vendors[vendorIndex].completedPayment || 0) + Math.round(amountPaid);
+            vendors[vendorIndex].advance = Math.max(0, (vendors[vendorIndex].advance || 0) - advanceDeduct);
+            vendors[vendorIndex].lastPaymentDate = date;
+
+            localStorage.setItem('vendors', JSON.stringify(vendors));
+            showToast("Payment saved successfully!");
+            loadVendorsTable();
+        }
+
+        function loadVendorsTable() {
+            const tbody = document.getElementById('vendorsBody');
+            tbody.innerHTML = '';
+            vendors.forEach((v, i) => {
+                const advance = v.advance || 0;
+                const last = v.lastPaymentDate || '—';
+
+                const row = document.createElement('tr');
+                row.className = 'border-b hover:bg-gray-50';
+                row.innerHTML = `
+                    <td onclick="showTransactionHistory(${i})" class="p-5 font-medium text-blue-700 underline cursor-pointer">${v.name}</td>
+                    <td class="p-5 text-right font-medium">₹${advance.toLocaleString('en-IN')}</td>
+                    <td class="p-5 text-center">${last}</td>
+                    <td class="p-5 text-center">
+                        <button onclick="deleteVendor(${i});event.stopImmediatePropagation()" class="text-red-600 hover:text-red-700">Delete</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function formatMoney(n) {
+            const rounded = Math.round(n);
+            const sign = rounded < 0 ? '-' : '';
+            return sign + '₹' + Math.abs(rounded).toLocaleString('en-IN');
+        }
+
+        function showTransactionHistory(index) {
+            const vendor = vendors[index];
+            document.getElementById('modalVendorName').textContent = `${vendor.name} - Transactions`;
+
+            const container = document.getElementById('transactionsList');
+            container.innerHTML = '';
+
+            const table = document.createElement('table');
+            table.className = 'w-full';
+            const thead = document.createElement('thead');
+            thead.className = 'bg-gray-100';
+            thead.innerHTML = `<tr>
+                <th class="p-4 text-left">Date</th>
+                <th class="p-4 text-right">Amount Calculated</th>
+                <th class="p-4 text-right">Advance</th>
+                <th class="p-4 text-right">Amount Sent</th>
+                <th class="p-4 text-right">Pending</th>
+            </tr>`;
+            table.appendChild(thead);
+
+            const tbody = document.createElement('tbody');
+
+            if (vendor.transactions && vendor.transactions.length > 0) {
+                const sorted = [...vendor.transactions].sort((a, b) => b.date.localeCompare(a.date));
+
+                sorted.forEach(t => {
+                    if (t.amountSent === undefined || t.amountSent === null) t.amountSent = 0;
+                    if (t.advanceDeducted === undefined || t.advanceDeducted === null) t.advanceDeducted = 0;
+
+                    const tr = document.createElement('tr');
+                    tr.className = 'border-b';
+
+                    const tdDate = document.createElement('td');
+                    tdDate.className = 'p-4';
+                    tdDate.textContent = t.date;
+
+                    const tdCalc = document.createElement('td');
+                    tdCalc.className = 'p-4 text-right font-semibold';
+                    tdCalc.textContent = formatMoney(t.amountPaid);
+
+                    const tdAdvance = document.createElement('td');
+                    tdAdvance.className = 'p-4 text-right';
+                    const advInput = document.createElement('input');
+                    advInput.type = 'number';
+                    advInput.step = '0.01';
+                    advInput.value = t.advanceDeducted;
+                    advInput.className = 'w-28 text-right border rounded-xl px-3 py-2 text-orange-700';
+
+                    const tdSent = document.createElement('td');
+                    tdSent.className = 'p-4 text-right';
+                    const sentInput = document.createElement('input');
+                    sentInput.type = 'number';
+                    sentInput.step = '0.01';
+                    sentInput.value = t.amountSent;
+                    sentInput.className = 'w-28 text-right border rounded-xl px-3 py-2';
+
+                    const tdPending = document.createElement('td');
+                    tdPending.className = 'p-4 text-right font-bold';
+
+                    const refreshPending = () => {
+                        const pending = (t.amountPaid || 0) - (t.amountSent || 0);
+                        tdPending.textContent = formatMoney(pending);
+                        tdPending.classList.toggle('text-red-600', pending < 0);
+                        tdPending.classList.toggle('text-emerald-600', pending >= 0);
+                    };
+                    refreshPending();
+
+                    advInput.addEventListener('input', () => {
+                        t.advanceDeducted = parseFloat(advInput.value);
+                        if (isNaN(t.advanceDeducted)) t.advanceDeducted = 0;
+                        localStorage.setItem('vendors', JSON.stringify(vendors));
+                    });
+
+                    sentInput.addEventListener('input', () => {
+                        t.amountSent = parseFloat(sentInput.value);
+                        if (isNaN(t.amountSent)) t.amountSent = 0;
+                        refreshPending();
+                        localStorage.setItem('vendors', JSON.stringify(vendors));
+                    });
+
+                    tdAdvance.appendChild(advInput);
+                    tdSent.appendChild(sentInput);
+
+                    tr.appendChild(tdDate);
+                    tr.appendChild(tdCalc);
+                    tr.appendChild(tdAdvance);
+                    tr.appendChild(tdSent);
+                    tr.appendChild(tdPending);
+                    tbody.appendChild(tr);
+                });
+            } else {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td colspan="5" class="p-12 text-center text-gray-500">No transactions yet</td>`;
+                tbody.appendChild(tr);
+            }
+
+            table.appendChild(tbody);
+            container.appendChild(table);
+            document.getElementById('transactionModal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('transactionModal').style.display = 'none';
+        }
+
+        function deleteVendor(i) {
+            pendingDeleteIndex = i;
+            document.getElementById('confirmDeleteText').textContent = `Are you sure you want to delete "${vendors[i].name}"? This cannot be undone.`;
+            document.getElementById('confirmDeleteModal').style.display = 'flex';
+        }
+
+        function closeConfirmDeleteModal() {
+            pendingDeleteIndex = null;
+            document.getElementById('confirmDeleteModal').style.display = 'none';
+        }
+
+        function confirmDeleteVendor() {
+            if (pendingDeleteIndex === null) return;
+            const name = vendors[pendingDeleteIndex].name;
+            vendors.splice(pendingDeleteIndex, 1);
+            localStorage.setItem('vendors', JSON.stringify(vendors));
+            loadVendorsTable();
+            populateVendorDropdown();
+            closeConfirmDeleteModal();
+            showToast(`"${name}" deleted`);
+        }
+
+        function addNewVendor() {
+            document.getElementById('newVendorName').value = '';
+            document.getElementById('addVendorModal').style.display = 'flex';
+            setTimeout(() => document.getElementById('newVendorName').focus(), 50);
+        }
+
+        function closeAddVendorModal() {
+            document.getElementById('addVendorModal').style.display = 'none';
+        }
+
+        function confirmAddVendor() {
+            const name = document.getElementById('newVendorName').value.trim();
+            if (!name) {
+                showToast("Please enter a vendor name");
+                return;
+            }
+            vendors.push({
+                name,
+                advance: 0,
+                completedPayment: 0,
+                lastPaymentDate: "",
+                transactions: []
+            });
+            localStorage.setItem('vendors', JSON.stringify(vendors));
+            populateVendorDropdown();
+            loadVendorsTable();
+            closeAddVendorModal();
+            showToast(`"${name}" added`);
+        }
+
+        // Initialize
+        window.onload = () => {
+            document.getElementById('calcDate').value = new Date().toISOString().split('T')[0];
+            populateVendorDropdown();
+            addItemRow();
+            loadVendorsTable();
+
+            // Auto calculate on input changes
+            const inputs = document.querySelectorAll('input, select');
+            inputs.forEach(input => {
+                input.addEventListener('input', calculateAll);
+                input.addEventListener('change', calculateAll);
+            });
+
+            calculateAll();
+        };
+    </script>
+</body>
+</html>
